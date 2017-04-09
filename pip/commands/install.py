@@ -124,8 +124,8 @@ class InstallCommand(RequirementCommand):
             '--force-reinstall',
             dest='force_reinstall',
             action='store_true',
-            help='When upgrading, reinstall all packages even if they are '
-                 'already up-to-date.')
+            help='Reinstall all packages even if they are already '
+                 'up-to-date.')
 
         cmd_opts.add_option(
             '-I', '--ignore-installed',

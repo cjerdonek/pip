@@ -413,15 +413,19 @@ class RequirementSet(object):
         if not req_to_install.satisfied_by:
             return None
 
+        if self.force_reinstall:
+            self._set_to_reinstall(req_to_install)
+            return None
+
         upgrade_allowed = self._is_upgrade_allowed(req_to_install)
 
-        # Whether the best version is installed.
-        best_installed = False
-
         if upgrade_allowed:
+            # Whether the best version is installed.
+            best_installed = False
+
             # For link-based requirements we have to pull the tree down and
             # inspect to assess the version, so it's handled way down.
-            if not (self.force_reinstall or req_to_install.link):
+            if not req_to_install.link:
                 try:
                     finder.find_requirement(req_to_install, upgrade_allowed)
                 except BestVersionAlreadyInstalled:
@@ -436,8 +440,6 @@ class RequirementSet(object):
                 self._set_to_reinstall(req_to_install)
                 return None
 
-        # Figure out a nice message to say why we're skipping this.
-        if best_installed:
             skip_reason = 'already up-to-date'
         elif self.upgrade_strategy == 'only-if-needed':
             skip_reason = 'not upgraded as not directly required'
@@ -634,7 +636,8 @@ class RequirementSet(object):
                 if not self.ignore_installed:
                     req_to_install.check_if_exists()
                 if req_to_install.satisfied_by:
-                    if self.upgrade or self.ignore_installed:
+                    if (self.upgrade or self.force_reinstall or
+                            self.ignore_installed):
                         self._set_to_reinstall(req_to_install)
                     else:
                         logger.info(
