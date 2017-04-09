@@ -379,6 +379,17 @@ class RequirementSet(object):
             )
         )
 
+    def _set_to_reinstall(self, req_to_install):
+        """
+        Set a requirement to be installed.
+        """
+        # Don't uninstall the conflict if doing a user install and the
+        # conflict is not a user install.
+        if not (self.use_user_site and not
+                dist_in_usersite(req_to_install.satisfied_by)):
+            req_to_install.conflicts_with = req_to_install.satisfied_by
+        req_to_install.satisfied_by = None
+
     def _check_skip_installed(self, req_to_install, finder):
         """Check if req_to_install should be skipped.
 
@@ -423,13 +434,7 @@ class RequirementSet(object):
                         pass
 
                 if not best_installed:
-                    # don't uninstall conflict if user install and
-                    # conflict is not user install
-                    if not (self.use_user_site and not
-                            dist_in_usersite(req_to_install.satisfied_by)):
-                        req_to_install.conflicts_with = \
-                            req_to_install.satisfied_by
-                    req_to_install.satisfied_by = None
+                    self._set_to_reinstall(req_to_install)
 
             # Figure out a nice message to say why we're skipping this.
             if best_installed:
@@ -632,14 +637,7 @@ class RequirementSet(object):
                     req_to_install.check_if_exists()
                 if req_to_install.satisfied_by:
                     if self.upgrade or self.ignore_installed:
-                        # don't uninstall conflict if user install and
-                        # conflict is not user install
-                        if not (self.use_user_site and not
-                                dist_in_usersite(
-                                    req_to_install.satisfied_by)):
-                            req_to_install.conflicts_with = \
-                                req_to_install.satisfied_by
-                        req_to_install.satisfied_by = None
+                        self._set_to_reinstall(req_to_install)
                     else:
                         logger.info(
                             'Requirement already satisfied (use '
