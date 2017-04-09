@@ -434,6 +434,7 @@ class RequirementSet(object):
 
             if not best_installed:
                 self._set_to_reinstall(req_to_install)
+                return None
 
         # Figure out a nice message to say why we're skipping this.
         if best_installed:
