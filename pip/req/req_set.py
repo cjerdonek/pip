@@ -408,7 +408,9 @@ class RequirementSet(object):
 
         :return: A text reason for why it was skipped, or None.
         """
-        # Check whether to upgrade/reinstall this req or not.
+        if self.ignore_installed:
+            return None
+
         req_to_install.check_if_exists()
         if not req_to_install.satisfied_by:
             return None
@@ -474,9 +476,7 @@ class RequirementSet(object):
             # satisfied_by is only evaluated by calling _check_skip_installed,
             # so it must be None here.
             assert req_to_install.satisfied_by is None
-            if not self.ignore_installed:
-                skip_reason = self._check_skip_installed(
-                    req_to_install, finder)
+            skip_reason = self._check_skip_installed(req_to_install, finder)
 
             if req_to_install.satisfied_by:
                 assert skip_reason is not None, (
