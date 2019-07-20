@@ -556,6 +556,11 @@ class BestCandidateResult(object):
         :param best_candidate: The most preferred candidate found, or None
             if no applicable candidates were found.
         """
+        assert set(applicable_candidates) <= set(candidates)
+
+        if best_candidate is not None:
+            assert best_candidate in applicable_candidates
+
         self._applicable_candidates = applicable_candidates
         self._candidates = candidates
 
