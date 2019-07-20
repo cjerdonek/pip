@@ -60,7 +60,7 @@ if MYPY_CHECK_RUNNING:
     SecureOrigin = Tuple[str, str, Optional[str]]
 
 
-__all__ = ['FormatControl', 'FoundCandidates', 'PackageFinder']
+__all__ = ['FormatControl', 'BestCandidateResult', 'PackageFinder']
 
 
 SECURE_ORIGINS = [
@@ -559,6 +559,9 @@ class CandidateEvaluator(object):
         :param target_python: The target Python interpreter to use when
             checking compatibility. If None (the default), a TargetPython
             object will be constructed from the running Python.
+        :param specifier: An optional object implementing `filter`
+            (e.g. `packaging.specifiers.SpecifierSet`) to filter applicable
+            versions.
         :param hashes: An optional collection of allowed hashes.
         """
         if target_python is None:
@@ -634,21 +637,17 @@ class CandidateEvaluator(object):
             project_name=self._project_name,
         )
 
-    def make_found_candidates(
+    def get_best_candidate(
         self,
         candidates,      # type: List[InstallationCandidate]
     ):
-        # type: (...) -> FoundCandidates
+        # type: (...) -> BestCandidateResult
         """
-        Create and return a `FoundCandidates` instance.
-
-        :param specifier: An optional object implementing `filter`
-            (e.g. `packaging.specifiers.SpecifierSet`) to filter applicable
-            versions.
+        Compute and return a `BestCandidateResult` instance.
         """
         applicable_candidates = self.get_applicable_candidates(candidates)
 
-        return FoundCandidates(
+        return BestCandidateResult(
             candidates,
             applicable_candidates=applicable_candidates,
             evaluator=self,
@@ -714,7 +713,7 @@ class CandidateEvaluator(object):
             build_tag, pri,
         )
 
-    def get_best_candidate(
+    def sort_best_candidate(
         self,
         candidates,    # type: List[InstallationCandidate]
     ):
@@ -745,11 +744,11 @@ class CandidateEvaluator(object):
         return best_candidate
 
 
-class FoundCandidates(object):
-    """A collection of candidates, returned by `PackageFinder.find_candidates`.
+class BestCandidateResult(object):
+    """A collection of candidates, returned by `PackageFinder.find_best_candidate`.
 
     This class is only intended to be instantiated by CandidateEvaluator's
-    `make_found_candidates()` method.
+    `get_best_candidate()` method.
     """
 
     def __init__(
@@ -787,7 +786,7 @@ class FoundCandidates(object):
         candidates are found.
         """
         candidates = list(self.iter_applicable())
-        return self._evaluator.get_best_candidate(candidates)
+        return self._evaluator.sort_best_candidate(candidates)
 
 
 class PackageFinder(object):
@@ -1165,20 +1164,20 @@ class PackageFinder(object):
             hashes=hashes,
         )
 
-    def find_candidates(
+    def find_best_candidate(
         self,
         project_name,       # type: str
         specifier=None,     # type: Optional[specifiers.BaseSpecifier]
         hashes=None,        # type: Optional[Hashes]
     ):
-        # type: (...) -> FoundCandidates
+        # type: (...) -> BestCandidateResult
         """Find matches for the given project and specifier.
 
         :param specifier: An optional object implementing `filter`
             (e.g. `packaging.specifiers.SpecifierSet`) to filter applicable
             versions.
 
-        :return: A `FoundCandidates` instance.
+        :return: A `BestCandidateResult` instance.
         """
         candidates = self.find_all_candidates(project_name)
         candidate_evaluator = self.make_candidate_evaluator(
@@ -1186,7 +1185,7 @@ class PackageFinder(object):
             specifier=specifier,
             hashes=hashes,
         )
-        return candidate_evaluator.make_found_candidates(candidates)
+        return candidate_evaluator.get_best_candidate(candidates)
 
     def find_requirement(self, req, upgrade):
         # type: (InstallRequirement, bool) -> Optional[Link]
@@ -1197,7 +1196,7 @@ class PackageFinder(object):
         Raises DistributionNotFound or BestVersionAlreadyInstalled otherwise
         """
         hashes = req.hashes(trust_internet=False)
-        candidates = self.find_candidates(
+        candidates = self.find_best_candidate(
             req.name, specifier=req.specifier, hashes=hashes,
         )
         best_candidate = candidates.get_best()
