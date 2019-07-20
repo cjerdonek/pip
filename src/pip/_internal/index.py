@@ -647,10 +647,12 @@ class CandidateEvaluator(object):
         """
         applicable_candidates = self.get_applicable_candidates(candidates)
 
+        best_candidate = self.sort_best_candidate(applicable_candidates)
+
         return BestCandidateResult(
             candidates,
             applicable_candidates=applicable_candidates,
-            evaluator=self,
+            best_candidate=best_candidate,
         )
 
     def _sort_key(self, candidate):
@@ -755,18 +757,19 @@ class BestCandidateResult(object):
         self,
         candidates,             # type: List[InstallationCandidate]
         applicable_candidates,  # type: List[InstallationCandidate]
-        evaluator,              # type: CandidateEvaluator
+        best_candidate,         # type: Optional[InstallationCandidate]
     ):
         # type: (...) -> None
         """
         :param candidates: A sequence of all available candidates found.
         :param applicable_candidates: The applicable candidates.
-        :param evaluator: A CandidateEvaluator object to sort applicable
-            candidates by order of preference.
+        :param best_candidate: The most preferred candidate found, or None
+            if no applicable candidates were found.
         """
         self._applicable_candidates = applicable_candidates
         self._candidates = candidates
-        self._evaluator = evaluator
+
+        self.best_candidate = best_candidate
 
     def iter_all(self):
         # type: () -> Iterable[InstallationCandidate]
@@ -779,14 +782,6 @@ class BestCandidateResult(object):
         """Iterate through the applicable candidates.
         """
         return iter(self._applicable_candidates)
-
-    def get_best(self):
-        # type: () -> Optional[InstallationCandidate]
-        """Return the best candidate available, or None if no applicable
-        candidates are found.
-        """
-        candidates = list(self.iter_applicable())
-        return self._evaluator.sort_best_candidate(candidates)
 
 
 class PackageFinder(object):
@@ -1196,10 +1191,10 @@ class PackageFinder(object):
         Raises DistributionNotFound or BestVersionAlreadyInstalled otherwise
         """
         hashes = req.hashes(trust_internet=False)
-        candidates = self.find_best_candidate(
+        best_candidate_result = self.find_best_candidate(
             req.name, specifier=req.specifier, hashes=hashes,
         )
-        best_candidate = candidates.get_best()
+        best_candidate = best_candidate_result.best_candidate
 
         installed_version = None    # type: Optional[_BaseVersion]
         if req.satisfied_by is not None:
@@ -1220,7 +1215,7 @@ class PackageFinder(object):
                 'Could not find a version that satisfies the requirement %s '
                 '(from versions: %s)',
                 req,
-                _format_versions(candidates.iter_all()),
+                _format_versions(best_candidate_result.iter_all()),
             )
 
             raise DistributionNotFound(
@@ -1255,14 +1250,14 @@ class PackageFinder(object):
                 'Installed version (%s) is most up-to-date (past versions: '
                 '%s)',
                 installed_version,
-                _format_versions(candidates.iter_applicable()),
+                _format_versions(best_candidate_result.iter_applicable()),
             )
             raise BestVersionAlreadyInstalled
 
         logger.debug(
             'Using version %s (newest of versions: %s)',
             best_candidate.version,
-            _format_versions(candidates.iter_applicable()),
+            _format_versions(best_candidate_result.iter_applicable()),
         )
         return best_candidate.location
 

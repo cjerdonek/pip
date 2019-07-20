@@ -390,13 +390,14 @@ class TestCandidateEvaluator:
         found_candidates = evaluator.get_best_candidate(candidates)
 
         assert found_candidates._candidates == candidates
-        assert found_candidates._evaluator is evaluator
         expected_applicable = candidates[:2]
         assert [str(c.version) for c in expected_applicable] == [
             '1.10',
             '1.11',
         ]
         assert found_candidates._applicable_candidates == expected_applicable
+
+        assert found_candidates.best_candidate is expected_applicable[1]
 
     @pytest.mark.parametrize('hex_digest, expected', [
         # Test a link with no hash.
