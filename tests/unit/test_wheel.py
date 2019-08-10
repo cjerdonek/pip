@@ -570,8 +570,13 @@ class TestWheelFile(object):
         Test a wheel not supported by the given tags.
         """
         w = wheel.Wheel('simple-0.1-py2-none-any.whl')
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as excinfo:
             w.support_index_min(tags=[])
+
+        assert str(excinfo.value) == (
+            "none of the 0 given tags is compatible with this wheel: "
+            "<Wheel('simple-0.1-py2-none-any.whl')>"
+        )
 
     def test_unpack_wheel_no_flatten(self):
         from pip._internal.utils import misc as utils

@@ -25,6 +25,7 @@ from pip._vendor import pkg_resources
 from pip._vendor.distlib.scripts import ScriptMaker
 from pip._vendor.packaging.utils import canonicalize_name
 from pip._vendor.six import StringIO
+from pip._vendor.six.moves import filter
 
 from pip._internal import pep425tags
 from pip._internal.download import unpack_file_url
@@ -369,7 +370,7 @@ def move_wheel_files(
         if modified:
             changed.add(destfile)
 
-    def clobber(source, dest, is_base, fixer=None, filter=None):
+    def clobber(source, dest, is_base, fixer=None, filter_=None):
         ensure_dir(dest)  # common for the 'include' path
 
         for dir, subdirs, files in os.walk(source):
@@ -392,7 +393,7 @@ def move_wheel_files(
                     info_dir.append(destsubdir)
             for f in files:
                 # Skip unwanted files
-                if filter and filter(f):
+                if filter_ and filter_(f):
                     continue
                 srcfile = os.path.join(dir, f)
                 destfile = os.path.join(dest, basedir, f)
@@ -463,15 +464,15 @@ def move_wheel_files(
 
     for datadir in data_dirs:
         fixer = None
-        filter = None
+        filter_ = None
         for subdir in os.listdir(os.path.join(wheeldir, datadir)):
             fixer = None
             if subdir == 'scripts':
                 fixer = fix_script
-                filter = is_entrypoint_wrapper
+                filter_ = is_entrypoint_wrapper
             source = os.path.join(wheeldir, datadir, subdir)
             dest = scheme[subdir]
-            clobber(source, dest, False, fixer=fixer, filter=filter)
+            clobber(source, dest, False, fixer=fixer, filter_=filter_)
 
     maker = ScriptMaker(None, scheme['scripts'])
 
@@ -730,6 +731,10 @@ class Wheel(object):
             for y in self.abis for z in self.plats
         }
 
+    def __repr__(self):
+        # type: () -> str
+        return '<Wheel({!r})>'.format(self.filename)
+
     def get_formatted_file_tags(self):
         # type: () -> List[str]
         """
@@ -752,7 +757,16 @@ class Wheel(object):
         :raises ValueError: If none of the wheel's file tags match one of
             the supported tags.
         """
-        return min(tags.index(tag) for tag in self.file_tags if tag in tags)
+        try:
+            # Stop iterating over `tags` at the first compatible tag.
+            file_tag = next(filter(self.file_tags.__contains__, tags))
+        except StopIteration:
+            raise ValueError(
+                'none of the {} given tags is compatible with this wheel: {!r}'
+                    .format(len(tags), self)
+            )
+
+        return tags.index(file_tag)
 
     def supported(self, tags):
         # type: (List[Pep425Tag]) -> bool
